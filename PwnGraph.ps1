@@ -13,9 +13,9 @@ Param(
 
 function Init {
 
-  #if (-not (Get-Module -Name Az -ListAvailable)) {
-  #  Install-Module -Name Az -AllowClobber -Force -Scope CurrentUser
-  #}
+  if (-not (Get-Module -Name Az -ListAvailable)) {
+    Install-Module -Name Az -AllowClobber -Force -Scope CurrentUser
+  }
 
   $azurePassword = ConvertTo-SecureString $appSecret -AsPlainText -Force
   $psCred = New-Object System.Management.Automation.PSCredential($azureApplicationID, $azurePassword)
