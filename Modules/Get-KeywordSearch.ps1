@@ -24,7 +24,6 @@ Function Get-KeywordSearch {
     Write-host "+======================================================================================+" -ForegroundColor Blue
 
     $keyword = Read-Host "[+] Please insert the keyword"
-    $region = Read-Host "[+] Please insert the Azure location"
     $searchEndpoint = "/search/query"
     
     $body = @("
@@ -42,15 +41,35 @@ Function Get-KeywordSearch {
               },
               'from': 0,
               'size': 999,
-              'region': '$region'
+              'region': 'location'
           }
       ]
     }
     ")
+    try {
+        (Invoke-RestMethod -Uri ($msGraphEndpoint + $searchEndpoint) -Method 'Post' -Body $body -Headers $HttpAuthHeader -ContentType 'application/json').value
+    }
+    catch {
+        $regionResponse = $_.ErrorDetails.Message
+    }
 
-    $searchResult = (Invoke-RestMethod -Uri ($msGraphEndpoint + $searchEndpoint) -Method 'Post' -Body $body -Headers $HttpAuthHeader -ContentType 'application/json').value
-    
-    if ($searchResult.hitsContainers.hits.hitId.count -gt 1) {
+    $pattern = 'are(.*?)."'
+    $regionCode = ([regex]::Match($regionResponse,$pattern).Groups[1].value).Replace(" ", "")
+    $body = $body -replace "location", $regionCode
+
+    try {
+        $searchResult = (Invoke-RestMethod -Uri ($msGraphEndpoint + $searchEndpoint) -Method 'Post' -Body $body -Headers $HttpAuthHeader -ContentType 'application/json').value
+    }
+    catch {
+        $regionResponse = $_.ErrorDetails.Message
+    }
+
+    if ($searchResult.hitsContainers.hits.hitId.count -lt 1){
+        Write-Host "    [+] Unfortunately, no documents related to the search were found." -ForegroundColor Yellow
+
+    }
+
+    elseif ($searchResult.hitsContainers.hits.hitId.count -gt 1) {
 
         for ($i = 0; $i -lt $searchResult.hitsContainers.hits.hitId.count; $i++) {
 
@@ -71,7 +90,8 @@ Function Get-KeywordSearch {
             
             $itemEndpoint = "/sites/$siteId/lists/$listId/items/$itemID/driveItem/?select=id,@microsoft.graph.downloadUrl"
             $fileURL = (Invoke-RestMethod -Uri ($msGraphEndpoint + $itemEndpoint) -Method Get -Headers $HttpAuthHeader).'@microsoft.graph.downloadUrl'
-            Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName
+            $ProgressPreference = 'SilentlyContinue'
+            Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName | Out-Null
 
             Write-Host "    [+] File $($fileName) saved at: " -ForegroundColor Yellow -NoNewline
             Write-Host "$(Get-Location)/Downloads/$($fileName)"  -ForegroundColor Green
@@ -97,7 +117,8 @@ Function Get-KeywordSearch {
 
         $itemEndpoint = "/sites/$siteId/lists/$listId/items/$itemID/driveItem/?select=id,@microsoft.graph.downloadUrl"
         $fileURL = (Invoke-RestMethod -Uri ($msGraphEndpoint + $itemEndpoint) -Method Get -Headers $HttpAuthHeader).'@microsoft.graph.downloadUrl'
-        Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName | Out-Null
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName -
 
         Write-Host "    [+] File $($fileName) saved at: " -ForegroundColor Yellow -NoNewline
         Write-Host "$(Get-Location)/Downloads/$($fileName)"  -ForegroundColor Green
