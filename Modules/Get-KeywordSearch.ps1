@@ -118,7 +118,7 @@ Function Get-KeywordSearch {
         $itemEndpoint = "/sites/$siteId/lists/$listId/items/$itemID/driveItem/?select=id,@microsoft.graph.downloadUrl"
         $fileURL = (Invoke-RestMethod -Uri ($msGraphEndpoint + $itemEndpoint) -Method Get -Headers $HttpAuthHeader).'@microsoft.graph.downloadUrl'
         $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName -
+        Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName | Out-Null
 
         Write-Host "    [+] File $($fileName) saved at: " -ForegroundColor Yellow -NoNewline
         Write-Host "$(Get-Location)/Downloads/$($fileName)"  -ForegroundColor Green
