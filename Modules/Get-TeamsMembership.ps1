@@ -8,8 +8,8 @@ function Get-TeamsMembership() {
 -===========++++=---   -++++= 
 ++++=======++++=:..     .:::  
 ++++-:. .::+++++-::::::-=====-") -ForegroundColor Cyan -NoNewline
-Write-Host "    [*] List all Teams channels and members [*]" -ForegroundColor Yellow -NoNewline
-Write-Host @("++++++: :++++++*=------=++++++
+  Write-Host "    [*] List all Teams channels and members [*]" -ForegroundColor Yellow -NoNewline
+  Write-Host @("++++++: :++++++*=------=++++++
 ++++++: :++++++*=------=++++++
 ++++++: :++++++*=------=++++++
 ++++++++++++****=------=++++++
@@ -39,29 +39,40 @@ Write-Host @("++++++: :++++++*=------=++++++
 
     $msTeamsChannelEndpoint = "/teams/$id/Channels"
     try {
-      $TeamsChannel = (Invoke-RestMethod -Uri ($msGraphEndpoint + $msTeamsChannelEndpoint) -Headers $HttpAuthHeader).value
+      $teamsChannel = (Invoke-RestMethod -Uri ($msGraphEndpoint + $msTeamsChannelEndpoint) -Headers $HttpAuthHeader).value
     }
     catch {
       Write-Warning $Error[0]
     }
+
+
     foreach ($channelId in ($TeamsChannel).id) {    
-      $TeamsChannelEndpoint = "/teams/$id/channels/$channelId"
+      $teamsChannelEndpoint = "/teams/$id/channels/$channelId"
       try {
-        $TeamsChannelMembers = (Invoke-RestMethod -Uri ($msGraphEndpoint + $TeamsChannelEndpoint) -Headers $HttpAuthHeader)
+        $teamsChannelMembers = (Invoke-RestMethod -Uri ($msGraphEndpoint + $teamsChannelEndpoint) -Headers $HttpAuthHeader)
       }
       catch {
         Write-Warning $Error[0]
       }
-      foreach ($chanid in $TeamsChannelMembers) {   
-        Write-Host "[+] Members and roles from channel:" $TeamsChannelMembers.displayName -ForegroundColor Yellow
-        $TeamsChannelEndpoint = "/teams/$id/channels/$channelId/members"
+      foreach ($chanid in $teamsChannelMembers) {   
+        Write-Host "  [+] Members and roles from channel:" $teamsChannelMembers.displayName -ForegroundColor Yellow
+        $teamsChannelEndpoint = "/teams/$id/channels/$channelId/members"
         try {
-          $TeamsChannelMembersList = (Invoke-RestMethod -Uri ($msGraphEndpoint + $TeamsChannelEndpoint) -Headers $HttpAuthHeader).value
+          $teamsChannelMembersList = (Invoke-RestMethod -Uri ($msGraphEndpoint + $TeamsChannelEndpoint) -Headers $HttpAuthHeader).value
         }
         catch {
           Write-Warning $Error[0]
         }
-        $TeamsChannelMembersList | Select-Object displayName, roles | Format-Table
+        foreach ($teamUser in $teamsChannelMembersList) {
+          Write-Host ""
+          Write-Host "    [+] Member Name: " -ForegroundColor Cyan -NoNewline
+          $teamUser.displayName
+          Write-Host "    [+] User email account: " -ForegroundColor Cyan -NoNewline
+          $teamUser.email
+          Write-Host "    [+] Member Role: " -ForegroundColor Cyan -NoNewline
+          Write-Host $teamUser.roles
+          Write-Host ""
+        }
       }    
     }             
   }
