@@ -14,7 +14,8 @@ Param(
 function Init {
 
   if (-not (Get-Module -Name Az -ListAvailable)) {
-    Install-Module -Name Az -AllowClobber -Force -Scope CurrentUser
+    Write-Host "Please install Az module." -ForegroundColor Yellow
+    Exit
   }
 
   $azurePassword = ConvertTo-SecureString $appSecret -AsPlainText -Force

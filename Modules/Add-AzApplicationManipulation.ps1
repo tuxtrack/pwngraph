@@ -48,7 +48,10 @@ function Add-AzApplicationManipulation {
         Write-Host ($azAdAppList.appId) -ForegroundColor Green
         Write-Host "[+] Application Roles:"
         for ($i = 0; $i -lt ((($azAdAppList.requiredResourceAccess).ResourceAccess).id.length); $i++) {
-            Write-Host "    [*]" ((($azAdAppList.requiredResourceAccess).ResourceAccess).id)[$i] -ForegroundColor Magenta
+            #Write-Host "    [*]" ((($azAdAppList.requiredResourceAccess).ResourceAccess).id)[$i] -ForegroundColor Magenta
+            $rlist = Get-Content .\Roles.json
+            $blist = $rlist -match ((($azAdAppList.requiredResourceAccess).ResourceAccess).id)[$i]
+            $blist[0] 
         } 
         Write-host "+======================================================================================+" -ForegroundColor Blue
     }
