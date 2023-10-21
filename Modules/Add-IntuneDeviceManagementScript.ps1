@@ -84,12 +84,9 @@ function Add-IntuneDeviceManagementScript {
             Write-Host $scriptList.description -ForegroundColor Green
             Write-Host "    [+] Script ID: " -ForegroundColor Yellow -NoNewline
             Write-Host $scriptList.id -ForegroundColor Green
-            Write-host "+--------------------------------------------------------------------------------------+" -ForegroundColor Yellow
             Write-Host "    [+] Script code: " -ForegroundColor Yellow
-            Write-host "+--------------------------------------------------------------------------------------+" -ForegroundColor Yellow
             $scriptContent = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($scriptList.scriptContent))
-            Write-Host $scriptContent -ForegroundColor Yellow
-            Write-host "+--------------------------------------------------------------------------------------+" -ForegroundColor Yellow
+            Write-Host $scriptContent -ForegroundColor Cyan
             Write-Host "    [+] File Name: " -ForegroundColor Yellow -NoNewline
             Write-Host $scriptList.fileName -ForegroundColor Green
             Write-Host "    [+] Enforce signature check: " -ForegroundColor Yellow -NoNewline

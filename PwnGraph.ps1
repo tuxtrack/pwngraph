@@ -19,12 +19,27 @@ function Init {
 
   $azurePassword = ConvertTo-SecureString $appSecret -AsPlainText -Force
   $psCred = New-Object System.Management.Automation.PSCredential($azureApplicationID, $azurePassword)
-  Connect-AzAccount -Credential $psCred -TenantID $azureTenantID -ServicePrincipal -WarningAction Ignore | Out-Null
+  
+  try {
+    Connect-AzAccount -Credential $psCred -TenantID $azureTenantID -ServicePrincipal -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
+  }
+  catch {
+    $desc = $_.Exception.Message
+    if ($desc -like "*Access has been blocked by Conditional Access policies*") {
+      Write-Host "  [+] Your access has been blocked by Conditional Access policies." -ForegroundColor Yellow
+    }
+    elseif ($desc -like "*was not found in the directory*") {
+      Write-Host "  [+] Identity not found in the directory." -ForegroundColor Yellow
+    }
+    Exit
+  }
+  
   $msGraphToken = (Get-AzAccessToken -ResourceTypeName MSGraph).Token
   
   $msGraphEndpoint = "https://graph.microsoft.com/v1.0"
   $httpAuthHeader = @{ Authorization = ("Bearer " + $msGraphToken) }
-
+  $mainServicePrincipalId = (Get-AzADServicePrincipal -ApplicationId $azureApplicationID).Id
+  
   #API permissions for each module
 
   $getOneNoteContentPermission = @(
@@ -45,8 +60,8 @@ function Init {
     'User.ReadWrite.All',
     'Directory.ReadWrite.All'
   )
-  $addAzUserToGroupPermission = @(
-    'GroupMember.ReadWrite.All'
+  $addAzSPToGroupPermission = @(
+    'Group.Read.All'
   )
   $AddIntuneDeviceManagementScriptsPermission = @(
     'DeviceManagementConfiguration.ReadWrite.All'
@@ -55,6 +70,7 @@ function Init {
     'Application.ReadWrite.All'
   )
   $getTeamsMembershipPermission = @(
+    'TeamMember.Read.All',
     'ChannelMember.Read.All',
     'Group.Read.All',
     'User.Read.All'
@@ -68,7 +84,7 @@ function Init {
 }
 # Permissions checks
 function Menu {
-  Clear-Host
+  #Clear-Host
   Write-host "+========================================================================================+" -ForegroundColor Blue
   Write-Host @("
   ██████  ██     ██ ███    ██  ██████  ██████   █████  ██████  ██   ██ 
@@ -81,6 +97,9 @@ function Menu {
 
   Write-Host "[+] Application Name: " -ForegroundColor Cyan -NoNewline
   (Parse-JWTtoken $msGraphToken).app_displayname
+
+  Write-Host "[+] Application Service Principal ID: " -ForegroundColor Cyan -NoNewline
+  $mainServicePrincipalId
 
   [array]$roleList = (Parse-JWTtoken $msGraphToken).roles | Sort-Object 
   Write-Host "[+] The current Graph API roles are:" -ForegroundColor Cyan
@@ -99,7 +118,10 @@ function Menu {
     $getTeamsMembershipPermission = $getTeamsMembershipPermission -replace 'User.Read.All', 'User.ReadWrite.All'
   }
   if ($roleList -contains "Group.ReadWrite.All") {
-    $getOneNoteContentPermission = $getOneNoteContentPermission -replace 'Group.Read.All', 'Group.ReadWrite.All'
+    $addAzSPToGroupPermission = $addAzSPToGroupPermission -replace 'Group.Read.All', 'Group.ReadWrite.All'
+  }
+  if ($roleList -contains "GroupMember.ReadWrite.All") {
+    $addAzSPToGroupPermission = $addAzSPToGroupPermission -replace 'Group.Read.All', 'GroupMember.ReadWrite.All'
   }
   if ($roleList -contains "Files.ReadWrite.All") {
     $getSearchPermission = $getSearchPermission -replace 'Files.Read.All', 'Files.ReadWrite.All'
@@ -112,6 +134,9 @@ function Menu {
   }
   if ($roleList -contains "Policy.ReadWrite.ConditionalAccess") {
     $addAzConditionalAccessPolicyPermissions += 'Policy.ReadWrite.ConditionalAccess'
+  }
+  if ($roleList -contains "TeamMember.ReadWrite.All") {
+    $getTeamsMembershipPermission = $getTeamsMembershipPermission -replace 'TeamMember.Read.All', 'TeamMember.ReadWrite.All'
   }
   
   $getOneNoteCountCheck = $getOneNoteContentPermission | Where-Object -FilterScript { $_ -in $roleList }
@@ -144,10 +169,10 @@ function Menu {
     $addAzUser = $true
   }
 
-  $addAzUserToGroupPermissionCountCheck = $addAzUserToGroupPermission | Where-Object -FilterScript { $_ -in $roleList }
-  if ($addAzUserToGroupPermissionCountCheck.Count -eq $addAzUserToGroupPermission.Count) {
-    Write-Host "    [6] Add a user as a member of a group." 
-    $addAzUserToGroup = $true
+  $addAzSPToGroupPermissionCountCheck = $addAzSPToGroupPermission | Where-Object -FilterScript { $_ -in $roleList }
+  if ($addAzSPToGroupPermissionCountCheck.Count -eq $addAzSPToGroupPermission.Count) {
+    Write-Host "    [6] List and modify (if it has permission) groups memberships and teams memberships." 
+    $addAzSPToGroup = $true
   }
 
   $AddIntuneDeviceManagementScriptsPermissionCountCheck = $AddIntuneDeviceManagementScriptsPermission | Where-Object -FilterScript { $_ -in $roleList }
@@ -170,7 +195,7 @@ function Menu {
 
   $addAzConditionalAccessPolicyPermissionsCountCheck = $addAzConditionalAccessPolicyPermissions | Where-Object -FilterScript { $_ -in $roleList }
   if ($addAzConditionalAccessPolicyPermissionsCountCheck.Count -eq $addAzConditionalAccessPolicyPermissions.Count) {
-    Write-Host "    [10] List and (modify (if possible)) Conditional Access Policy" 
+    Write-Host "    [10] List and modify (if possible) Conditional Access Policy" 
     $addAzConditionalAccessPolicy = $true
   }
   
@@ -184,7 +209,7 @@ function Menu {
     3 { if ($addGraphRole -eq $true) { Invoke-Expression -Command ".\Modules\Add-GraphAPIRole.ps1" } }
     4 { if ($addAzGARole -eq $true) { Invoke-Expression -Command ".\Modules\Add-AzGARole.ps1" } }
     5 { if ($addAzUser -eq $true) { Invoke-Expression -Command ".\Modules\Add-AzUser.ps1" } }
-    6 { if ($addAzUserToGroup -eq $true) { Invoke-Expression -Command ".\Modules\Add-AzUserToGroup.ps1" } }
+    6 { if ($addAzSPToGroup -eq $true) { Invoke-Expression -Command ".\Modules\Add-AzSPToGroup.ps1" } }
     7 { if ($addIntuneDeviceManagementScripts -eq $true) { Invoke-Expression -Command ".\Modules\Add-IntuneDeviceManagementScript.ps1" } }
     8 { if ($AddAzApplicationManipulation -eq $true) { Invoke-Expression -Command ".\Modules\Add-AzApplicationManipulation.ps1" } }
     9 { if ($getTeamsMembership -eq $true) { Invoke-Expression -Command ".\Modules\Get-TeamsMembership.ps1" } }

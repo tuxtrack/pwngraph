@@ -40,7 +40,7 @@ Function Get-KeywordSearch {
                   'queryString': '$keyword'
               },
               'from': 0,
-              'size': 999,
+              'size': 501,
               'region': 'location'
           }
       ]
@@ -54,7 +54,7 @@ Function Get-KeywordSearch {
     }
 
     $pattern = 'are(.*?)."'
-    $regionCode = ([regex]::Match($regionResponse,$pattern).Groups[1].value).Replace(" ", "")
+    $regionCode = ([regex]::Match($regionResponse, $pattern).Groups[1].value).Replace(" ", "")
     $body = $body -replace "location", $regionCode
 
     try {
@@ -64,7 +64,7 @@ Function Get-KeywordSearch {
         $regionResponse = $_.ErrorDetails.Message
     }
 
-    if ($searchResult.hitsContainers.hits.hitId.count -lt 1){
+    if ($searchResult.hitsContainers.hits.hitId.count -lt 1) {
         Write-Host "    [+] Unfortunately, no documents related to the search were found." -ForegroundColor Yellow
 
     }
@@ -86,7 +86,6 @@ Function Get-KeywordSearch {
             $listId = $searchResult.hitsContainers.hits.resource.parentReference.sharepointIds.listId[$i]
             $itemId = $searchResult.hitsContainers.hits.resource.parentReference.sharepointIds.listItemUniqueId[$i]
             $fileName = $searchResult.hitsContainers.hits.resource.name[$i]
-            
             
             $itemEndpoint = "/sites/$siteId/lists/$listId/items/$itemID/driveItem/?select=id,@microsoft.graph.downloadUrl"
             $fileURL = (Invoke-RestMethod -Uri ($msGraphEndpoint + $itemEndpoint) -Method Get -Headers $HttpAuthHeader).'@microsoft.graph.downloadUrl'
@@ -118,7 +117,7 @@ Function Get-KeywordSearch {
         $itemEndpoint = "/sites/$siteId/lists/$listId/items/$itemID/driveItem/?select=id,@microsoft.graph.downloadUrl"
         $fileURL = (Invoke-RestMethod -Uri ($msGraphEndpoint + $itemEndpoint) -Method Get -Headers $HttpAuthHeader).'@microsoft.graph.downloadUrl'
         $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName | Out-Null
+        Invoke-WebRequest -URI $fileURL -OutFile ./Downloads/$fileName
 
         Write-Host "    [+] File $($fileName) saved at: " -ForegroundColor Yellow -NoNewline
         Write-Host "$(Get-Location)/Downloads/$($fileName)"  -ForegroundColor Green
